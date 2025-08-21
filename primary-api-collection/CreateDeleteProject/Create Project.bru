@@ -1,0 +1,26 @@
+meta {
+  name: Create Project
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{localhost}}/v1/projects
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "label": "colin",
+    "description": "colin test"
+  }
+}
+
+script:post-response {
+  bru.setEnvVar("project_id" ,res.body.id)
+}
+
+settings {
+  encodeUrl: true
+}

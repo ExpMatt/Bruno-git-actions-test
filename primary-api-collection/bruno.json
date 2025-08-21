@@ -1,0 +1,9 @@
+{
+  "version": "1",
+  "name": "Primary API Automated Bruno Tests",
+  "type": "collection",
+  "ignore": [
+    "node_modules",
+    ".git"
+  ]
+}
