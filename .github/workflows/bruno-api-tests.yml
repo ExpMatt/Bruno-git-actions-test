@@ -23,11 +23,12 @@ jobs:
       run: npm install -g @usebruno/cli
     
     - name: Run API Tests
-      run: bru run --env ci --reporter-html results.html
+      run: bru run --env primaryapi --reporter-html results.html
       working-directory: primary-api-collection
     
     - name: Upload Test Results
+      if: always()
       uses: actions/upload-artifact@v4
       with:
-          name: test-results
-          path: results.html
+        name: test-results
+        path: results.html
