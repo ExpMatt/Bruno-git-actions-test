@@ -1,34 +1,99 @@
 name: Bruno API Tests
- 
+
 on:
   push:
-    branches: [ main ]
-  pull_request:
-    branches: [ main ]
- 
+    branches:
+      - main
+
 jobs:
   test:
     runs-on: ubuntu-latest
-    
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: keruscloud_db
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      localstack:
+        image: localstack/localstack:latest
+        ports:
+          - 4568:4566
+      valkey:
+        image: valkey/valkey:latest
+        ports:
+          - 6379:6379
+        options: >-
+          --hostname valkey
+          --name valkey
+
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Migrate database
+        env:
+          DATABASE_URL: postgres://postgres:postgres@localhost:5432/keruscloud_db
+        run: npx prisma migrate deploy
+
+      - name: Generate prisma client
+        env:
+          DATABASE_URL: postgres://postgres:postgres@localhost:5432/keruscloud_db
+        run: npx prisma generate --sql
+
+      - name: Generate reference data
+        env:
+          DATABASE_URL: postgres://postgres:postgres@localhost:5432/keruscloud_db
+        run: npx tsx hooks/generateStaticAssetFiles.ts
+
+      - name: Run lint
+        run: npm run lint
+
+      - name: Init localstack resources
+        env:
+          AWS_ENDPOINT_URL: http://localhost:4568
+          AWS_REGION: us-east-1
+          AWS_DEFAULT_REGION: us-east-1
+          AWS_ACCESS_KEY_ID: localstack
+          AWS_SECRET_ACCESS_KEY: localstack
+        run: .devcontainer/.localstack/init/ready.d/create.sh
+
+      - name: Run tests
+        env:
+          AWS_ENDPOINT_URL: http://localhost:4568
+          AWS_REGION: us-east-1
+          AWS_DEFAULT_REGION: us-east-1
+          AWS_ACCESS_KEY_ID: localstack
+          AWS_SECRET_ACCESS_KEY: localstack
+          DATABASE_URL: postgres://postgres:postgres@localhost:5432/keruscloud_db
+        run: npm run test
       
-    - name: Setup Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: '20'
-    
-    - name: Install Bruno CLI
-      run: npm install -g @usebruno/cli
-    
-    - name: Run API Tests
-      run: bru run --env primaryapi --reporter-html results.html
-      working-directory: primary-api-collection
-    
-    - name: Upload Test Results
-      if: always()
-      uses: actions/upload-artifact@v4
-      with:
-        name: test-results
-        path: results.html
+      - name: Install Bruno CLI
+        run: npm install -g @usebruno/cli
+      
+      - name: Run API Tests
+        run: bru run --env primaryapi --reporter-html results.html
+        working-directory: primary-api-collection
+      
+      - name: Upload Test Results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: results.html
