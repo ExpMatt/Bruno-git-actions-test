@@ -5,11 +5,5 @@
   "ignore": [
     "node_modules",
     ".git"
-  ],
-  "scripts": {
-    "moduleWhitelist": ["https"],
-    "filesystemAccess": {
-      "allow": true
-    }
-  }
+  ]
 }
